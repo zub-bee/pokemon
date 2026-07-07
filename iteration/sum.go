@@ -7,3 +7,18 @@ func Sum(numbers []int) int {
 	}
 	return sum
 }
+
+func SumAllTails(numbers ...[]int) []int {
+
+	var sums []int
+
+	for _, numslice := range numbers {
+		if len(numslice) == 0 {
+			sums = append(sums, 0)
+			continue
+		}
+		tail := numslice[1:]
+		sums = append(sums, Sum(tail))
+	}
+	return sums
+}
