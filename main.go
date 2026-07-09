@@ -146,6 +146,11 @@ var commands = map[string]cliCommand{
 		description: "inspect a pokemon",
 		callback:    inspectPokemon,
 	},
+	"pokedex": {
+		name:        "pokedex",
+		description: "list your caught pokemon",
+		callback:    listPokedox,
+	},
 }
 
 var conf = &config{
@@ -272,6 +277,18 @@ func inspectPokemon(name string) error {
 	return nil
 }
 
+func listPokedox(text string) error {
+	fmt.Println(text)
+	for _, pokemon := range pokedox {
+		_, err := fmt.Println(pokemon.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func GetResponse[T any](url string) (T, error) {
 	var resp T
 	cache := pokecache.NewCache(time.Second * 10)
@@ -378,6 +395,11 @@ func main() {
 			}
 			input := repl.CleanInput(userInput)[1]
 			err := commands["inspect"].callback(input)
+			if err != nil {
+				fmt.Println(err)
+			}
+		case "pokedex":
+			err := commands["pokedex"].callback("Your pokedex: ")
 			if err != nil {
 				fmt.Println(err)
 			}
