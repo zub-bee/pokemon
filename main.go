@@ -105,6 +105,11 @@ var commands = map[string]cliCommand{
 		description: "display pokemon map backwards",
 		callback:    showMap,
 	},
+	"explore": {
+		name:        "explore",
+		description: "explore pokemon map",
+		callback:    exploreMap,
+	},
 }
 
 var conf = &config{
