@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -66,6 +67,10 @@ type ExploreResponse struct {
 	PokemonEncounters []PokemonEncounters `json:"pokemon_encounters"`
 }
 
+type PokemonResponse struct {
+	Experience int `json:"base_experience"`
+}
+
 type PokemonEncounters struct {
 	Pokemon struct {
 		Name string `json:"name"`
@@ -110,6 +115,11 @@ var commands = map[string]cliCommand{
 		name:        "explore",
 		description: "explore pokemon map",
 		callback:    exploreMap,
+	},
+	"catch": {
+		name:        "catch",
+		description: "catch a pokemon",
+		callback:    getPokemon,
 	},
 }
 
@@ -185,6 +195,30 @@ func exploreMap(name string) error {
 		fmt.Println(area.Pokemon.Name)
 	}
 
+	return nil
+}
+
+func getPokemon(name string) error {
+	url := "https://pokeapi.co/api/v2/pokemon/" + name
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", name)
+	exp := rand.Intn(100)
+	catch := 0
+
+	pokemon, err := GetResponse[PokemonResponse](url)
+	if err != nil {
+		return err
+	}
+	if pokemon.Experience > exp {
+		catch = 1
+	}
+
+	if catch == 1 {
+		fmt.Printf("%s was caught!\n", name)
+		return nil
+	}
+
+	fmt.Printf("%s escaped!\n", name)
 	return nil
 }
 
@@ -274,6 +308,16 @@ func main() {
 			}
 			input := repl.CleanInput(userInput)[1]
 			err := commands["explore"].callback(input)
+			if err != nil {
+				fmt.Println(err)
+			}
+		case "catch":
+			if len(repl.CleanInput(userInput)) < 2 {
+				fmt.Println("Please provide a pokemon name")
+				return
+			}
+			input := repl.CleanInput(userInput)[1]
+			err := commands["catch"].callback(input)
 			if err != nil {
 				fmt.Println(err)
 			}
