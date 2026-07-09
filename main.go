@@ -95,6 +95,13 @@ type PokemonEncounters struct {
 	} `json:"version_details"`
 }
 
+type Pokemon struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
+}
+
+var pokedox = map[string]Pokemon{}
+
 var commands = map[string]cliCommand{
 	"exit": {
 		name:        "exit",
@@ -213,6 +220,10 @@ func catchPokemon(name string) error {
 
 	if catch == 1 {
 		fmt.Printf("%s was caught!\n", name)
+		pokedox[name] = Pokemon{
+			name,
+			url,
+		}
 		return nil
 	}
 
