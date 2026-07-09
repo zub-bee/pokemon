@@ -119,7 +119,7 @@ var commands = map[string]cliCommand{
 	"catch": {
 		name:        "catch",
 		description: "catch a pokemon",
-		callback:    getPokemon,
+		callback:    catchPokemon,
 	},
 }
 
@@ -127,8 +127,6 @@ var conf = &config{
 	Previous: "",
 	Next:     "",
 }
-
-var cache = &pokecache.Cache{}
 
 func commandExit(a string) error {
 	_, err := fmt.Println(a)
@@ -198,7 +196,7 @@ func exploreMap(name string) error {
 	return nil
 }
 
-func getPokemon(name string) error {
+func catchPokemon(name string) error {
 	url := "https://pokeapi.co/api/v2/pokemon/" + name
 
 	fmt.Printf("Throwing a Pokeball at %s...\n", name)
@@ -209,7 +207,7 @@ func getPokemon(name string) error {
 	if err != nil {
 		return err
 	}
-	if pokemon.Experience > exp {
+	if pokemon.Experience > exp && exp >= 50 {
 		catch = 1
 	}
 
