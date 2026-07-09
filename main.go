@@ -249,7 +249,20 @@ func catchPokemon(name string) error {
 func inspectPokemon(name string) error {
 	for _, pokemon := range pokedox {
 		if pokemon.Name == name {
-			fmt.Println(pokemon)
+			fmt.Printf("Name: %s\n", pokemon.Name)
+			fmt.Printf("Base Experience: %d\n", pokemon.BaseExperience)
+			fmt.Printf("Height: %d\n", pokemon.Height)
+			fmt.Printf("Weight: %d\n", pokemon.Weight)
+			fmt.Println("Stats:")
+			for _, stat := range pokemon.Stats {
+				fmt.Printf("   - %s: %d\n", stat.Stat.Name, stat.BaseStat)
+			}
+
+			fmt.Println("Types:")
+			for _, type_ := range pokemon.Types {
+				fmt.Printf("   - %s\n", type_.Type.Name)
+			}
+
 			return nil
 		}
 
