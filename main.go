@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/zub-bee/pokemon/internal/pokecache"
 	"github.com/zub-bee/pokemon/repl"
@@ -173,7 +174,7 @@ func exploreMap(name string) error {
 		return err
 	}
 
-	url := "https://pokeapi.co/api/v2/location-area" + name
+	url := "https://pokeapi.co/api/v2/location-area/" + name
 
 	response, err := GetResponse[ExploreResponse](url)
 	if err != nil {
@@ -189,6 +190,7 @@ func exploreMap(name string) error {
 
 func GetResponse[T any](url string) (T, error) {
 	var resp T
+	cache := pokecache.NewCache(time.Second * 10)
 
 	// check cache first
 	fmt.Println("checking cache..")
@@ -262,6 +264,16 @@ func main() {
 			}
 		case "mapb":
 			err := commands["mapb"].callback("previous")
+			if err != nil {
+				fmt.Println(err)
+			}
+		case "explore":
+			if len(repl.CleanInput(userInput)) < 2 {
+				fmt.Println("Please provide a location name")
+				return
+			}
+			input := repl.CleanInput(userInput)[1]
+			err := commands["explore"].callback(input)
 			if err != nil {
 				fmt.Println(err)
 			}

@@ -32,7 +32,7 @@ func (c *Cache) Add(key string, val []byte) ([]byte, bool) {
 		createdAt: time.Now(),
 		val:       val,
 	}
-	return c.entry[key].val, true
+	return val, true
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
@@ -57,6 +57,6 @@ func (c *Cache) reapLoop(interval time.Duration) {
 			}
 		}
 		c.mu.Unlock()
-		
+
 	}
 }
