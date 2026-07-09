@@ -3,17 +3,20 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
+	"github.com/zub-bee/pokemon/internal/pokecache"
 	"github.com/zub-bee/pokemon/repl"
 )
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(a string) error
 	config      *config
 }
 
@@ -27,11 +30,63 @@ type locationArea struct {
 	Url  string `json:"url"`
 }
 
-type response struct {
+type MapResponse struct {
 	Count    int            `json:"count"`
 	Next     string         `json:"next"`
 	Previous string         `json:"previous"`
 	Results  []locationArea `json:"results"`
+}
+
+type ExploreResponse struct {
+	EncounterMethodRates []struct {
+		EncounterMethod struct {
+			Name string `json:"name"`
+			Url  string `json:"url"`
+		} `json:"encounter_method"`
+		VersionDetails []struct {
+			Rate    int `json:"rate"`
+			Version struct {
+				Name string `json:"name"`
+				Url  string `json:"url"`
+			} `json:"version"`
+		} `json:"version_details"`
+	} `json:"encounter_method_rates"`
+	Location struct {
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	} `json:"location"`
+	Names []struct {
+		Name     string `json:"name"`
+		Language struct {
+			Name string `json:"name"`
+			Url  string `json:"url"`
+		} `json:"language"`
+	} `json:"names"`
+	PokemonEncounters []PokemonEncounters `json:"pokemon_encounters"`
+}
+
+type PokemonEncounters struct {
+	Pokemon struct {
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	} `json:"pokemon"`
+	VersionDetails []struct {
+		Version struct {
+			Name string `json:"name"`
+			Url  string `json:"url"`
+		} `json:"version"`
+		MaxChance        int `json:"max_chance"`
+		EncounterDetails []struct {
+			MinLevel        int           `json:"min_level"`
+			MaxLevel        int           `json:"max_level"`
+			ConditionValues []interface{} `json:"condition_values"`
+			Chance          int           `json:"chance"`
+			Method          struct {
+				Name string `json:"name"`
+				Url  string `json:"url"`
+			} `json:"method"`
+		} `json:"encounter_details"`
+	} `json:"version_details"`
 }
 
 var commands = map[string]cliCommand{
@@ -48,7 +103,7 @@ var commands = map[string]cliCommand{
 	"mapb": {
 		name:        "mapb",
 		description: "display pokemon map backwards",
-		callback:    showMapB,
+		callback:    showMap,
 	},
 }
 
@@ -57,8 +112,10 @@ var conf = &config{
 	Next:     "",
 }
 
-func commandExit() error {
-	_, err := fmt.Println("Closing the Pokedex... Goodbye!")
+var cache = &pokecache.Cache{}
+
+func commandExit(a string) error {
+	_, err := fmt.Println(a)
 	if err != nil {
 		os.Exit(1)
 		return err
@@ -67,7 +124,7 @@ func commandExit() error {
 	return nil
 }
 
-func showMap() error {
+func showMap(direction string) error {
 	_, err := fmt.Println("displaying pokemon map")
 	if err != nil {
 		return err
@@ -75,12 +132,19 @@ func showMap() error {
 
 	url := "https://pokeapi.co/api/v2/location-area"
 
-	if conf.Next != "" {
-		url = conf.Next
+	switch direction {
+	case "previous":
+		if conf.Previous != "" {
+			url = conf.Previous
+		}
+	default:
+		if conf.Next != "" {
+			url = conf.Next
+		}
 	}
 
 	// get response from api
-	response, err := getResponse(url)
+	response, err := GetResponse(url)
 	if err != nil {
 		return err
 	}
@@ -98,52 +162,45 @@ func showMap() error {
 	return nil
 }
 
-func showMapB() error {
-	_, err := fmt.Println("displaying pokemon map")
-	if err != nil {
-		return err
+func GetResponse(url string) (MapResponse, error) {
+	// check cache first
+	fmt.Println("checking cache..")
+	data, ok := cache.Get(url)
+	var resp MapResponse
+
+	if ok {
+		fmt.Println("cache hit!")
+		return resp, json.Unmarshal(data, &resp)
 	}
 
-	url := "https://pokeapi.co/api/v2/location-area"
-
-	if conf.Previous != "" {
-		url = conf.Previous
-	}
-
-	// get response from api
-	response, err := getResponse(url)
-	if err != nil {
-		return err
-	}
-
-	// resolve the response to config and lists
-	// config
-	conf.Previous = response.Previous
-	conf.Next = response.Next
-
-	// lists
-	for _, area := range response.Results {
-		fmt.Println(area.Name)
-	}
-
-	return nil
-}
-
-func getResponse(url string) (response, error) {
+	fmt.Println("cache miss! calling api")
+	// get response from api in cache miss
 	res, err := http.Get(url)
 	if err != nil {
-		return response{}, err
+		return MapResponse{}, err
 	}
 	defer res.Body.Close()
 
-	var resp response
-
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&resp)
+	data, err = io.ReadAll(res.Body)
 	if err != nil {
-		return response{}, err
+		return MapResponse{}, err
+	}
+	fmt.Println("api response received")
+
+	// update cache
+	fmt.Println("updating cache..")
+	_, ok = cache.Add(url, data)
+	if !ok {
+		return MapResponse{}, errors.New("cache could not be updated")
 	}
 
+	// unmarshal response
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		return MapResponse{}, err
+	}
+
+	// return response
 	return resp, nil
 }
 
@@ -166,16 +223,22 @@ func main() {
 		command := repl.CleanInput(userInput)[0]
 		switch command {
 		case "exit":
-			err := commands["exit"].callback()
+			err := commands["exit"].callback("Closing the Pokedex... Goodbye!")
 			if err != nil {
 				fmt.Println(err)
 			}
 		case "help":
 			printHelp()
 		case "map":
-			commands["map"].callback()
+			err := commands["map"].callback("next")
+			if err != nil {
+				fmt.Println(err)
+			}
 		case "mapb":
-			commands["mapb"].callback()
+			err := commands["mapb"].callback("previous")
+			if err != nil {
+				fmt.Println(err)
+			}
 		default:
 			fmt.Println("Unknown command")
 		}
