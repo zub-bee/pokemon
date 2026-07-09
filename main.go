@@ -68,7 +68,25 @@ type ExploreResponse struct {
 }
 
 type PokemonResponse struct {
-	Experience int `json:"base_experience"`
+	Name           string `json:"name"`
+	BaseExperience int    `json:"base_experience"`
+	Height         int    `json:"height"`
+	Weight         int    `json:"weight"`
+	Stats          []struct {
+		BaseStat int `json:"base_stat"`
+		Effort   int `json:"effort"`
+		Stat     struct {
+			Name string `json:"name"`
+			Url  string `json:"url"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Slot int `json:"slot"`
+		Type struct {
+			Name string `json:"name"`
+			Url  string `json:"url"`
+		} `json:"type"`
+	} `json:"types"`
 }
 
 type PokemonEncounters struct {
@@ -95,12 +113,7 @@ type PokemonEncounters struct {
 	} `json:"version_details"`
 }
 
-type Pokemon struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
-}
-
-var pokedox = map[string]Pokemon{}
+var pokedox = map[string]PokemonResponse{}
 
 var commands = map[string]cliCommand{
 	"exit": {
@@ -127,6 +140,11 @@ var commands = map[string]cliCommand{
 		name:        "catch",
 		description: "catch a pokemon",
 		callback:    catchPokemon,
+	},
+	"inspect": {
+		name:        "inspect",
+		description: "inspect a pokemon",
+		callback:    inspectPokemon,
 	},
 }
 
@@ -214,20 +232,30 @@ func catchPokemon(name string) error {
 	if err != nil {
 		return err
 	}
-	if pokemon.Experience > exp && exp >= 50 {
+	if pokemon.BaseExperience > exp && exp >= 50 {
 		catch = 1
 	}
 
 	if catch == 1 {
 		fmt.Printf("%s was caught!\n", name)
-		pokedox[name] = Pokemon{
-			name,
-			url,
-		}
+		pokedox[url] = pokemon
 		return nil
 	}
 
 	fmt.Printf("%s escaped!\n", name)
+	return nil
+}
+
+func inspectPokemon(name string) error {
+	for _, pokemon := range pokedox {
+		if pokemon.Name == name {
+			fmt.Println(pokemon)
+			return nil
+		}
+
+		fmt.Println("pokemon has not been caught yet")
+		return nil
+	}
 	return nil
 }
 
@@ -327,6 +355,16 @@ func main() {
 			}
 			input := repl.CleanInput(userInput)[1]
 			err := commands["catch"].callback(input)
+			if err != nil {
+				fmt.Println(err)
+			}
+		case "inspect":
+			if len(repl.CleanInput(userInput)) < 2 {
+				fmt.Println("Please provide a pokemon name")
+				return
+			}
+			input := repl.CleanInput(userInput)[1]
+			err := commands["inspect"].callback(input)
 			if err != nil {
 				fmt.Println(err)
 			}
