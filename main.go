@@ -144,7 +144,7 @@ func showMap(direction string) error {
 	}
 
 	// get response from api
-	response, err := GetResponse(url)
+	response, err := GetResponse[MapResponse](url)
 	if err != nil {
 		return err
 	}
@@ -162,11 +162,32 @@ func showMap(direction string) error {
 	return nil
 }
 
-func GetResponse(url string) (MapResponse, error) {
+func exploreMap(name string) error {
+	_, err := fmt.Println("exploring pokemon map")
+	if err != nil {
+		return err
+	}
+
+	url := "https://pokeapi.co/api/v2/location-area" + name
+
+	response, err := GetResponse[ExploreResponse](url)
+	if err != nil {
+		return err
+	}
+
+	for _, area := range response.PokemonEncounters {
+		fmt.Println(area.Pokemon.Name)
+	}
+
+	return nil
+}
+
+func GetResponse[T any](url string) (T, error) {
+	var resp T
+
 	// check cache first
 	fmt.Println("checking cache..")
 	data, ok := cache.Get(url)
-	var resp MapResponse
 
 	if ok {
 		fmt.Println("cache hit!")
@@ -177,13 +198,13 @@ func GetResponse(url string) (MapResponse, error) {
 	// get response from api in cache miss
 	res, err := http.Get(url)
 	if err != nil {
-		return MapResponse{}, err
+		return resp, err
 	}
 	defer res.Body.Close()
 
 	data, err = io.ReadAll(res.Body)
 	if err != nil {
-		return MapResponse{}, err
+		return resp, err
 	}
 	fmt.Println("api response received")
 
@@ -191,13 +212,13 @@ func GetResponse(url string) (MapResponse, error) {
 	fmt.Println("updating cache..")
 	_, ok = cache.Add(url, data)
 	if !ok {
-		return MapResponse{}, errors.New("cache could not be updated")
+		return resp, errors.New("cache could not be updated")
 	}
 
 	// unmarshal response
 	err = json.Unmarshal(data, &resp)
 	if err != nil {
-		return MapResponse{}, err
+		return resp, err
 	}
 
 	// return response
